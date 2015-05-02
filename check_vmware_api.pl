@@ -5,7 +5,7 @@
 # License: GPL
 # Copyright (c) 2008 op5 AB
 # Author: Kostyantyn Hushchyn <op5-users@lists.op5.com>
-# Contributor(s): Patrick Müller, Jeremy Martin, Eric Jonsson, stumpr, John Cavanaugh, Libor Klepac, maikmayers, Steffen Poulsen, Mark Elliott, simeg, sebastien.prudhomme, Raphael Schitz
+# Contributor(s): Patrick MÃ¼ller, Jeremy Martin, Eric Jonsson, stumpr, John Cavanaugh, Libor Klepac, maikmayers, Steffen Poulsen, Mark Elliott, simeg, sebastien.prudhomme, Raphael Schitz
 #
 # For direct contact with any of the op5 developers send a mail to
 # op5-users@lists.op5.com
@@ -33,17 +33,17 @@ use Nagios::Plugin;
 use File::Basename;
 use HTTP::Date;
 my $perl_module_instructions="
-Download the latest version of Perl Toolkit from VMware support page.
+Download the latest version of Perl Toolkit from VMware support page. 
 In this example we use VMware-vSphere-SDK-for-Perl-4.0.0-161974.x86_64.tar.gz,
 but the instructions should apply to newer versions as well.
-
+  
 Upload the file to your op5 Monitor server's /root dir and execute:
 
     cd /root
     tar xvzf VMware-vSphere-SDK-for-Perl-4.0.0-161974.x86_64.tar.gz
     cd vmware-vsphere-cli-distrib/
     ./vmware-install.pl
-
+  
 Follow the on screen instructions, described below:
 
   \"Creating a new vSphere CLI installer database using the tar4 format.
@@ -54,22 +54,22 @@ Follow the on screen instructions, described below:
 
   You must read and accept the vSphere CLI End User License Agreement to
   continue.
-  Press enter to display it.\"
-
+  Press enter to display it.\" 
+  
     <ENTER>
 
-  \"Read through the License Agreement\"
-  \"Do you accept? (yes/no)
-
+  \"Read through the License Agreement\" 
+  \"Do you accept? (yes/no) 
+  
     yes
 
 
   \"The following Perl modules were found on the system but may be too old to work
   with VIPerl:
-
+  
   Crypt::SSLeay
   Compress::Zlib\"
-
+  
   \"In which directory do you want to install the executable files? [/usr/bin]\"
 
     <ENTER>
@@ -80,14 +80,14 @@ Follow the on screen instructions, described below:
   successfully. You can decide to remove this software from your system at any
   time by invoking the following command:
   \"/usr/bin/vmware-uninstall-vSphere-CLI.pl\".
-
+  
   This installer has successfully installed both vSphere CLI and the vSphere SDK
   for Perl.
   Enjoy,
-
+  
   --the VMware team\"
 
-Note: \"Crypt::SSLeay\" and \"Compress::Zlib\" are not needed for check_vmware_api to work.
+Note: \"Crypt::SSLeay\" and \"Compress::Zlib\" are not needed for check_vmware_api to work.  
 ";
 
 
@@ -688,6 +688,10 @@ eval
 		{
 			($result, $output) = cluster_list_vm_volumes_info($cluster, $np, $subcommand, $blacklist, $percc || $percw, $addopts);
 		}
+		elsif ($command eq "STORAGE")
+		{
+			($result, $output) = cluster_volumes_info($cluster, $np, $subcommand, $blacklist, $percc || $percw, $addopts);
+		}		
 		elsif ($command eq "RUNTIME")
 		{
 			($result, $output) = cluster_runtime_info($cluster, $np, local_uc($subcommand), $blacklist);
@@ -726,6 +730,26 @@ eval
 		{
 			($result, $output) = dc_list_vm_volumes_info($np, $subcommand, $blacklist, $percc || $percw, $addopts);
 		}
+		elsif ($command eq "VMFSLIST")
+		{
+			($result, $output) = dc_list_volumes_name($np, $subcommand, $blacklist, $percc || $percw, $addopts);
+		}
+		elsif ($command eq "SIOC")
+		{
+			($result, $output) = dc_datastore_sioc_info($np, $subcommand, $blacklist, $percc || $percw, $addopts);
+		}
+		elsif ($command eq "IOPS")
+		{
+			($result, $output) = dc_datastore_iops_info($np, $subcommand, $blacklist, $percc || $percw, $addopts);
+		}		
+		elsif ($command eq "STORAGEPOD")
+		{
+			($result, $output) = dc_list_storage_pod_info($np, $subcommand, $blacklist, $percc || $percw, $addopts);
+		}
+		elsif ($command eq "STORAGEPODTHIN")
+		{
+			($result, $output) = dc_list_storage_pod_overcommit($np, $subcommand, $blacklist, $percc || $percw, $addopts);
+		}
 		elsif ($command eq "RUNTIME")
 		{
 			($result, $output) = dc_runtime_info($np, local_uc($subcommand), $blacklist);
@@ -734,7 +758,7 @@ eval
 		{
 			$output = "Unknown HOST command\n" . $np->opts->_help;
 			$result = CRITICAL;
-		}
+		}		
 	}
 };
 if ($@)
@@ -931,7 +955,7 @@ sub return_cluster_performance_values {
 	my $cluster_view = Vim::find_entity_views(view_type => 'ClusterComputeResource', filter => { name => "$cluster_name" }, properties => [ 'name' ]); # Added properties named argument.
 	die "Runtime error\n" if (!defined($cluster_view));
 	die "Cluster \"" . $cluster_name . "\" does not exist\n" if (!@$cluster_view);
-
+	
 	my $perfargs = shift(@_);
 	die "Since cluster does not have realtime stats interval other than 20(default value) is mandatory\n" if (!exists($perfargs->{interval}));
 	$perfargs->{timestamp} = time() if (exists($perfargs->{timeshift}));
@@ -1055,7 +1079,7 @@ sub check_health_state
 	} elsif (uc($state) eq "RED") {
 		$res = CRITICAL;
 	}
-
+	
 	return $res;
 }
 
@@ -1196,6 +1220,306 @@ sub datastore_volumes_info
 	return ($res, $output);
 }
 
+sub storage_pod_info
+{
+	my ($pod, $np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $res = OK;
+	my $output = '';
+
+	my $usedflag;
+	my $briefflag;
+	my $regexpflag;
+	my $blackregexpflag;
+	$usedflag = $addopts =~ m/(^|\s|\t|,)\Qused\E($|\s|\t|,)/ if (defined($addopts));
+	$briefflag = $addopts =~ m/(^|\s|\t|,)\Qbrief\E($|\s|\t|,)/ if (defined($addopts));
+	$regexpflag = $addopts =~ m/(^|\s|\t|,)\Qregexp\E($|\s|\t|,)/ if (defined($addopts));
+	$blackregexpflag = $addopts =~ m/(^|\s|\t|,)\Qblacklistregexp\E($|\s|\t|,)/ if (defined($addopts));
+
+	die "Blacklist is supported only in generic check or regexp subcheck\n" if (defined($subcommand) && defined($blacklist) && !defined($regexpflag));
+
+	if (defined($regexpflag) && defined($subcommand))
+	{
+		eval
+		{
+			qr{$subcommand};
+		};
+		if ($@)
+		{
+			$@ =~ s/ at.*line.*\.//;
+			die $@;
+		}
+	}
+
+	my $state;
+	foreach my $ref_store (@{$pod})
+	{
+		my $store = $ref_store;
+		my $name = $store->summary->name;
+		if (!defined($subcommand) || ($name eq $subcommand) || (defined($regexpflag) && $name =~ /$subcommand/))
+		{
+			if (defined($blacklist))
+			{
+				next if ($blackregexpflag?$name =~ /$blacklist/:$blacklist =~ m/(^|\s|\t|,)\Q$name\E($|\s|\t|,)/);
+			}
+
+			if ($store->summary)
+			{
+				my $value1 = simplify_number(convert_number($store->summary->freeSpace) / 1024 / 1024);
+				my $value2 = simplify_number(convert_number($store->summary->capacity) / 1024 / 1024);
+				$value2 = simplify_number($value1 / $value2 * 100) if ($value2 > 0);
+				
+				if ($usedflag)
+				{
+					$value1 = simplify_number(simplify_number($store->summary->capacity) / 1024 / 1024) - $value1;
+					$value2 = 100 - $value2;
+				}
+
+				$state = $np->check_threshold(check => $perc?$value2:$value1);
+				$res = Nagios::Plugin::Functions::max_state($res, $state);
+				$np->add_perfdata(label => $name, value => $perc?$value2:$value1, uom => $perc?'%':'MB', threshold => $np->threshold);
+				$output .= "'$name'" . ($usedflag ? "(used)" : "(free)") . "=". $value1 . " MB (" . $value2 . "%), " if (!$briefflag || $state != OK);
+			}
+			else
+			{
+				$res = CRITICAL;
+				$output .= "'$name' is not accessible, ";
+			}
+			last if (!$regexpflag && defined($subcommand) && ($name eq $subcommand));
+			$blacklist .= $blackregexpflag?"|^$name\$":",$name";
+		}
+	}
+
+	if ($output)
+	{
+		chop($output);
+		chop($output);
+		$output = "StoragePods : " . $output;
+	}
+	else
+	{
+		if ($briefflag)
+		{
+			$output = "There are no alerts";
+		}
+		else
+		{
+			$res = WARNING;
+			$output = defined($subcommand)?$regexpflag? "No matching volumes for regexp \"$subcommand\" found":"No volume named \"$subcommand\" found":"There are no volumes";
+		}
+	}
+
+	return ($res, $output);
+}
+
+sub storage_pod_overcommit
+{
+	my ($pod, $np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $res = OK;
+	my $output = '';
+
+	my $usedflag;
+	my $briefflag;
+	my $regexpflag;
+	my $blackregexpflag;
+
+	$briefflag = $addopts =~ m/(^|\s|\t|,)\Qbrief\E($|\s|\t|,)/ if (defined($addopts));
+	$regexpflag = $addopts =~ m/(^|\s|\t|,)\Qregexp\E($|\s|\t|,)/ if (defined($addopts));
+	$blackregexpflag = $addopts =~ m/(^|\s|\t|,)\Qblacklistregexp\E($|\s|\t|,)/ if (defined($addopts));
+
+	die "Blacklist is supported only in generic check or regexp subcheck\n" if (defined($subcommand) && defined($blacklist) && !defined($regexpflag));
+
+	if (defined($regexpflag) && defined($subcommand))
+	{
+		eval
+		{
+			qr{$subcommand};
+		};
+		if ($@)
+		{
+			$@ =~ s/ at.*line.*\.//;
+			die $@;
+		}
+	}
+
+	my $state;
+	foreach my $ref_store (@{$pod})
+	{
+		my $store = $ref_store;
+		my $storechildren = $store->childEntity;
+		my $name = $store->summary->name;
+		if (!defined($subcommand) || ($name eq $subcommand) || (defined($regexpflag) && $name =~ /$subcommand/))
+		{
+			if (defined($blacklist))
+			{
+				next if ($blackregexpflag?$name =~ /$blacklist/:$blacklist =~ m/(^|\s|\t|,)\Q$name\E($|\s|\t|,)/);
+			}
+
+			if ($store->summary)
+			{
+				my $value1;
+				my $value2;
+				my $value3;
+			
+					foreach my $storechild (@$storechildren)
+					{
+						
+						my $storechildview = Vim::get_view(mo_ref => $storechild, properties => ['summary']);
+						
+						$value1 += simplify_number(convert_number($storechildview->summary->freeSpace) / 1024 / 1024);
+						$value2 += simplify_number(convert_number($storechildview->summary->capacity) / 1024 / 1024);
+
+						if (!$storechildview->summary->uncommitted)
+						{
+							$value3 += 0;
+						}
+						else
+						{
+							$value3 += simplify_number(convert_number($storechildview->summary->uncommitted) / 1024 / 1024);
+						}
+					}
+				
+				my $value4 = $value2 - $value1 + $value3;
+				my $value5 = simplify_number(($value2 - $value1 + $value3) / $value2 * 100);
+				
+				$state = $np->check_threshold(check => $perc?$value2:$value1);
+				$res = Nagios::Plugin::Functions::max_state($res, $state);
+				$np->add_perfdata(label => $name, value => $perc?$value2:$value1, uom => $perc?'%':'MB', threshold => $np->threshold);
+				$output .= "'$name'" . "(provisioned)" . "=". $value4 . " MB (" . $value5 . "%), " if (!$briefflag || $state != OK);
+			}
+			else
+			{
+				$res = CRITICAL;
+				$output .= "'$name' is not accessible, ";
+			}
+			last if (!$regexpflag && defined($subcommand) && ($name eq $subcommand));
+			$blacklist .= $blackregexpflag?"|^$name\$":",$name";
+		}
+	}
+
+	if ($output)
+	{
+		chop($output);
+		chop($output);
+		$output = "StoragePods : " . $output;
+	}
+	else
+	{
+		if ($briefflag)
+		{
+			$output = "There are no alerts";
+		}
+		else
+		{
+			$res = WARNING;
+			$output = defined($subcommand)?$regexpflag? "No matching volumes for regexp \"$subcommand\" found":"No volume named \"$subcommand\" found":"There are no volumes";
+		}
+	}
+
+	return ($res, $output);
+}
+
+sub storage_cluster_info
+{
+	my ($pod, $np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $res = OK;
+	my $output = '';
+
+	my $usedflag;
+	my $briefflag;
+	my $regexpflag;
+	my $blackregexpflag;
+
+	$briefflag = $addopts =~ m/(^|\s|\t|,)\Qbrief\E($|\s|\t|,)/ if (defined($addopts));
+	$regexpflag = $addopts =~ m/(^|\s|\t|,)\Qregexp\E($|\s|\t|,)/ if (defined($addopts));
+	$blackregexpflag = $addopts =~ m/(^|\s|\t|,)\Qblacklistregexp\E($|\s|\t|,)/ if (defined($addopts));
+
+	die "Blacklist is supported only in generic check or regexp subcheck\n" if (defined($subcommand) && defined($blacklist) && !defined($regexpflag));
+
+	if (defined($regexpflag) && defined($subcommand))
+	{
+		eval
+		{
+			qr{$subcommand};
+		};
+		if ($@)
+		{
+			$@ =~ s/ at.*line.*\.//;
+			die $@;
+		}
+	}
+
+	my $state;
+	foreach my $ref_store ($pod)
+	{
+		my $store = $ref_store;
+		my $storechildren = $store->datastore;
+		my $name = $store->name;
+		if (!defined($subcommand) || ($name eq $subcommand) || (defined($regexpflag) && $name =~ /$subcommand/))
+		{
+			if (defined($blacklist))
+			{
+				next if ($blackregexpflag?$name =~ /$blacklist/:$blacklist =~ m/(^|\s|\t|,)\Q$name\E($|\s|\t|,)/);
+			}
+
+			if ($store->datastore)
+			{
+				my $value1;
+				my $value2;
+				my $value3;
+			
+					foreach my $storechild (@$storechildren)
+					{
+						
+						my $storechildview = Vim::get_view(mo_ref => $storechild, properties => ['summary']);
+						
+						$value1 += simplify_number(convert_number($storechildview->summary->freeSpace) / 1024 / 1024);
+						$value2 += simplify_number(convert_number($storechildview->summary->capacity) / 1024 / 1024);
+
+					}
+				
+				my $value4 = $value2 - $value1;
+				my $value5 = simplify_number(($value2 - $value1) / $value2 * 100);
+				
+				$state = $np->check_threshold(check => $perc?$value2:$value1);
+				$res = Nagios::Plugin::Functions::max_state($res, $state);
+				$np->add_perfdata(label => $name, value => $perc?$value2:$value1, uom => $perc?'%':'MB', threshold => $np->threshold);
+				$output .= "'$name'" . "(used)" . "=". $value4 . " MB (" . $value5 . "%), " if (!$briefflag || $state != OK);
+			}
+			else
+			{
+				$res = CRITICAL;
+				$output .= "'$name' is not accessible, ";
+			}
+			last if (!$regexpflag && defined($subcommand) && ($name eq $subcommand));
+			$blacklist .= $blackregexpflag?"|^$name\$":",$name";
+		}
+	}
+
+	if ($output)
+	{
+		chop($output);
+		chop($output);
+		$output = "Cluster Storage : " . $output;
+	}
+	else
+	{
+		if ($briefflag)
+		{
+			$output = "There are no alerts";
+		}
+		else
+		{
+			$res = WARNING;
+			$output = defined($subcommand)?$regexpflag? "No matching volumes for regexp \"$subcommand\" found":"No volume named \"$subcommand\" found":"There are no volumes";
+		}
+	}
+
+	return ($res, $output);
+}
+
 #=====================================================================| HOST |============================================================================#
 
 sub host_cpu_info
@@ -1230,7 +1554,7 @@ sub host_cpu_info
 			if (defined($value))
 			{
 				$np->add_perfdata(label => "cpu_usage", value => $value, uom => '%', threshold => $np->threshold);
-				$output = "cpu usage=" . $value . " %";
+				$output = "cpu usage=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -1334,7 +1658,7 @@ sub host_mem_info
 			if (defined($value))
 			{
 				$np->add_perfdata(label => "mem_usage", value => $value, uom => '%', threshold => $np->threshold);
-				$output = "mem usage=" . $value . " %";
+				$output = "mem usage=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -1484,7 +1808,7 @@ sub host_net_info
 
 	my $res = CRITICAL;
 	my $output = 'HOST NET Unknown error';
-
+	
 	if (defined($subcommand))
 	{
 		if ($subcommand eq "USAGE")
@@ -1758,6 +2082,17 @@ sub host_disk_io_info
 				$res = $np->check_threshold(check => $value);
 			}
 		}
+		elsif ($subcommand eq "SIOC")
+		{
+			$values = return_host_performance_values($host, $defperfargs, 'datastore', ('sizeNormalizedDatastoreLatency.average:*'));
+			if (defined($values))
+			{
+				my $value = simplify_number(convert_number($$values[0][0]->value), 0);
+				$np->add_perfdata(label => "sioc_device", value => $value, uom => 'us', threshold => $np->threshold);
+				$output = "sioc device latency=" . $value . " us";
+				$res = $np->check_threshold(check => $value);
+			}
+		}		
 		elsif ($subcommand eq "QUEUE")
 		{
 			$values = return_host_performance_values($host, $defperfargs, 'disk', ('queueLatency.average:*'));
@@ -2135,7 +2470,7 @@ sub host_runtime_info
 				{
 					$output = "All $OKCount temperature checks are GREEN: " . $output;
 					$res = OK;
-				}
+				}                               
 			}
 			else
 			{
@@ -2725,7 +3060,7 @@ sub format_uptime {
 
 	if ($days == 0)
 	{
-		$output = sprintf("%d:%02d:%02d", $hours, $minutes, $seconds);
+		$output = sprintf("%d:%02d:%02d", $hours, $minutes, $seconds); 
 	}
 	elsif ($days == 1)
 	{
@@ -2853,7 +3188,7 @@ sub vm_cpu_info
 			{
 				my $value = simplify_number(convert_number($$values[0][0]->value) * 0.01);
 				$np->add_perfdata(label => "cpu_usage", value => $value, uom => '%', threshold => $np->threshold);
-				$output = "\"$vmname\" cpu usage=" . $value . " %";
+				$output = "\"$vmname\" cpu usage=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -2933,7 +3268,7 @@ sub vm_mem_info
 			{
 				my $value = simplify_number(convert_number($$values[0][0]->value) * 0.01);
 				$np->add_perfdata(label => "mem_usage", value => $value, uom => '%', threshold => $np->threshold);
-				$output = "\"$vmname\" mem usage=" . $value . " %";
+				$output = "\"$vmname\" mem usage=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3076,7 +3411,7 @@ sub vm_net_info
 			{
 				my $value = simplify_number(convert_number($$values[0][0]->value));
 				$np->add_perfdata(label => "net_usage", value => $value, uom => 'KBps', threshold => $np->threshold);
-				$output = "\"$vmname\" net usage=" . $value . " KBps";
+				$output = "\"$vmname\" net usage=" . $value . " KBps"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3087,7 +3422,7 @@ sub vm_net_info
 			{
 				my $value = simplify_number(convert_number($$values[0][0]->value));
 				$np->add_perfdata(label => "net_receive", value => $value, uom => 'KBps', threshold => $np->threshold);
-				$output = "\"$vmname\" net receive=" . $value . " KBps";
+				$output = "\"$vmname\" net receive=" . $value . " KBps"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3098,7 +3433,7 @@ sub vm_net_info
 			{
 				my $value = simplify_number(convert_number($$values[0][0]->value));
 				$np->add_perfdata(label => "net_send", value => $value, uom => 'KBps', threshold => $np->threshold);
-				$output = "\"$vmname\" net send=" . $value . " KBps";
+				$output = "\"$vmname\" net send=" . $value . " KBps"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3413,7 +3748,7 @@ sub dc_cpu_info
 			if (defined($value))
 			{
 				$np->add_perfdata(label => "cpu_usage", value => $value, uom => '%', threshold => $np->threshold);
-				$output = "cpu usage=" . $value . " %";
+				$output = "cpu usage=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3530,7 +3865,7 @@ sub dc_mem_info
 			if (defined($value))
 			{
 				$np->add_perfdata(label => "mem_usage", value => $value, uom => '%', threshold => $np->threshold);
-				$output = "mem usage=" . $value . " %";
+				$output = "mem usage=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3672,7 +4007,7 @@ sub dc_net_info
 				grep($value += convert_number($$_[0]->value), @$values);
 				$value = simplify_number($value);
 				$np->add_perfdata(label => "net_usage", value => $value, uom => 'KBps', threshold => $np->threshold);
-				$output = "net usage=" . $value . " KBps";
+				$output = "net usage=" . $value . " KBps"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3685,7 +4020,7 @@ sub dc_net_info
 				grep($value += convert_number($$_[0]->value), @$values);
 				$value = simplify_number($value);
 				$np->add_perfdata(label => "net_receive", value => $value, uom => 'KBps', threshold => $np->threshold);
-				$output = "net receive=" . $value . " KBps";
+				$output = "net receive=" . $value . " KBps"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3698,7 +4033,7 @@ sub dc_net_info
 				grep($value += convert_number($$_[0]->value), @$values);
 				$value = simplify_number($value);
 				$np->add_perfdata(label => "net_send", value => $value, uom => 'KBps', threshold => $np->threshold);
-				$output = "net send=" . $value . " KBps";
+				$output = "net send=" . $value . " KBps"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -3743,6 +4078,146 @@ sub dc_list_vm_volumes_info
 	}
 
 	return datastore_volumes_info(\@datastores, $np, $subcommand, $blacklist, $perc, $addopts);
+}
+
+sub dc_list_volumes_name
+{
+	my ($np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $ds_views = Vim::find_entity_views(view_type => 'Datastore', properties => ['name']);
+	die "There are no datastore\n" if (!defined($ds_views));
+
+	my $res = OK;
+	$output = '';
+
+	foreach my $ds (@$ds_views)
+	{
+		my $name = $ds->name;
+		$output .= "'$name', ";
+	}
+	
+	chop($output);
+	chop($output);
+	
+	return ($res, $output);
+}
+
+sub dc_datastore_sioc_info
+{
+	my ($np, $subcommand, $blacklist, $perc, $addopts) = @_;
+	my $ds_name = $subcommand;
+	my $ds_view = Vim::find_entity_view(view_type => 'Datastore', filter => {name => $ds_name}, properties => ['info.url', 'host']);
+	die "datastore does not exist\n" if (!defined($ds_view));
+
+	my $host_list = $ds_view->get_property('host');
+	
+        my $esx_count = 0;
+        my $host_perf_target_name;
+        until (defined($host_perf_target_name))
+        {
+                my $host_perf_target = @$host_list["$esx_count"];
+                my $host_perf_moref = $host_perf_target->key;
+                my $host_perf_target_view = (Vim::get_view(mo_ref => $host_perf_moref, properties => ['name', 'runtime.connectionState', 'runtime.inMaintenanceMode']));
+
+                my $host_runtime_conn = $host_perf_target_view->get_property('runtime.connectionState.val');
+                my $host_runtime_mmode = $host_perf_target_view->get_property('runtime.inMaintenanceMode');
+                if ($host_runtime_conn eq 'connected' and $host_runtime_mmode eq 'false') {
+                        $host_perf_target_name = $host_perf_target_view->get_property('name');
+                        last;
+                }
+
+                $esx_count++;
+        }
+	
+	my $ds_url = $ds_view->get_property('info.url');
+	my @ds_uuid = split('/', $ds_url);
+	
+	my $esx = {name => $host_perf_target_name};
+	
+	my $values = return_host_performance_values($esx, $defperfargs, 'datastore', ("sizeNormalizedDatastoreLatency.average:$ds_uuid[5]"));
+	
+	my $value = simplify_number(convert_number($$values[0][0]->value), 0);
+
+	$np->add_perfdata(label => "sioc_device", value => $value, uom => 'us', threshold => $np->threshold);
+	$output = "SIOC device latency=" . $value . " us";
+	my $res = $np->check_threshold(check => $value);	
+	
+	return ($res, $output);
+}
+
+sub dc_datastore_iops_info
+{
+	my ($np, $subcommand, $blacklist, $perc, $addopts) = @_;
+	my $ds_name = $subcommand;
+	my $ds_view = Vim::find_entity_view(view_type => 'Datastore', filter => {name => $ds_name}, properties => ['info.url', 'host']);
+	die "datastore does not exist\n" if (!defined($ds_view));
+
+	my $host_list = $ds_view->get_property('host');
+	
+        my $esx_count = 0;
+        my $host_perf_target_name;
+        until (defined($host_perf_target_name))
+        {
+                my $host_perf_target = @$host_list["$esx_count"];
+                my $host_perf_moref = $host_perf_target->key;
+                my $host_perf_target_view = (Vim::get_view(mo_ref => $host_perf_moref, properties => ['name', 'runtime.connectionState', 'runtime.inMaintenanceMode']));
+
+                my $host_runtime_conn = $host_perf_target_view->get_property('runtime.connectionState.val');
+                my $host_runtime_mmode = $host_perf_target_view->get_property('runtime.inMaintenanceMode');
+                if ($host_runtime_conn eq 'connected' and $host_runtime_mmode eq 'false') {
+                        $host_perf_target_name = $host_perf_target_view->get_property('name');
+                        last;
+                }
+
+                $esx_count++;
+        }
+	
+	my $ds_url = $ds_view->get_property('info.url');
+	my @ds_uuid = split('/', $ds_url);
+	
+	my $esx = {name => $host_perf_target_name};
+	
+	my $values = return_host_performance_values($esx, $defperfargs, 'datastore', ("datastoreIops.average:$ds_uuid[5]"));
+	
+	my $value = simplify_number(convert_number($$values[0][0]->value), 0);
+
+	$np->add_perfdata(label => "iops_device", value => $value, uom => 'iops', threshold => $np->threshold);
+	$output = "SIOC aggregate IOPS=" . $value . " iops";
+	my $res = $np->check_threshold(check => $value);	
+	
+	return ($res, $output);
+}
+
+sub dc_list_storage_pod_info
+{
+	my ($np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $pod_views = Vim::find_entity_views(view_type => 'StoragePod', properties => ['summary']);
+	die "There are no StoragePod\n" if (!defined($pod_views));
+
+	my @storagepods;
+	foreach my $pod (@$pod_views)
+	{
+		push(@storagepods, @{$pod_views});
+	}
+
+	return storage_pod_info(\@storagepods, $np, $subcommand, $blacklist, $perc, $addopts);
+}
+
+sub dc_list_storage_pod_overcommit
+{
+	my ($np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $pod_views = Vim::find_entity_views(view_type => 'StoragePod', properties => ['summary', 'childEntity']);
+	die "There are no StoragePod\n" if (!defined($pod_views));
+
+	my @storagepods;
+	foreach my $pod (@$pod_views)
+	{
+		push(@storagepods, @{$pod_views});
+	}
+
+	return storage_pod_overcommit(\@storagepods, $np, $subcommand, $blacklist, $perc, $addopts);
 }
 
 sub dc_disk_io_info
@@ -4188,7 +4663,7 @@ sub dc_runtime_info
 			my $issues = $dc->configIssue;
 			$issue_count += @$issues if (defined($issues));
 		}
-
+		
 		if ($issue_count)
 		{
 			$output .= $issue_count . " config issue(s)";
@@ -4213,28 +4688,69 @@ sub cluster_cpu_info
 	my $res = CRITICAL;
 	my $output = 'CLUSTER CPU Unknown error';
 
+	my $quickStats;
+	$quickStats = $addopts =~ m/(^|\s|\t|,)\Qquickstats\E($|\s|\t|,)/ if (defined($addopts));	
+
 	if (defined($subcommand))
 	{
 		if ($subcommand eq "USAGE")
 		{
-			$values = return_cluster_performance_values($cluster, $defperfargs, 'cpu', ('usage.average'));
-			if (defined($values))
+			if (defined($quickStats))
 			{
-				my $value = simplify_number(convert_number($$values[0][0]->value) * 0.01);
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->overallCpuUsage / $cluster_root_pool->summary->totalCpu * 100) if (defined($values));
 				$np->add_perfdata(label => "cpu_usage", value => $value, uom => '%', threshold => $np->threshold);
-				$output = "cpu usage=" . $value . " %";
+				$output = "cpu usage=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
+				
+				
+			}
+			else
+			{
+				$values = return_cluster_performance_values($cluster, $defperfargs, 'cpu', ('usage.average'));
+				if (defined($values))
+				{
+					my $value = simplify_number(convert_number($$values[0][0]->value) * 0.01);
+					$np->add_perfdata(label => "cpu_usage", value => $value, uom => '%', threshold => $np->threshold);
+					$output = "cpu usage=" . $value . " %"; 
+					$res = $np->check_threshold(check => $value);
+				}
 			}
 		}
 		elsif ($subcommand eq "USAGEMHZ")
 		{
-			$values = return_cluster_performance_values($cluster, $defperfargs, 'cpu', ('usagemhz.average'));
-			if (defined($values))
+			if (defined($quickStats))
 			{
-				my $value = simplify_number(convert_number($$values[0][0]->value));
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->overallCpuUsage) if (defined($values));
 				$np->add_perfdata(label => "cpu_usagemhz", value => $value, uom => 'Mhz', threshold => $np->threshold);
-				$output = "cpu usagemhz=" . $value . " MHz";
+				$output = "cpu usagemhz=" . $value . " MHz"; 
 				$res = $np->check_threshold(check => $value);
+				
+				
+			}
+			else
+			{		
+				$values = return_cluster_performance_values($cluster, $defperfargs, 'cpu', ('usagemhz.average'));
+				if (defined($values))
+				{
+					my $value = simplify_number(convert_number($$values[0][0]->value));
+					$np->add_perfdata(label => "cpu_usagemhz", value => $value, uom => 'Mhz', threshold => $np->threshold);
+					$output = "cpu usagemhz=" . $value . " MHz";
+					$res = $np->check_threshold(check => $value);
+				}
 			}
 		}
 		else
@@ -4269,97 +4785,252 @@ sub cluster_mem_info
 
 	my $outputlist;
 	$outputlist = $addopts =~ m/(^|\s|\t|,)\Qlistvm\E($|\s|\t|,)/ if (defined($addopts));
+	
+	my $quickStats;
+	$quickStats = $addopts =~ m/(^|\s|\t|,)\Qquickstats\E($|\s|\t|,)/ if (defined($addopts));		
 
 	if (defined($subcommand))
 	{
 		if ($subcommand eq "USAGE")
 		{
-			$values = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('usage.average'));
-			if (defined($values))
+			if (defined($quickStats))
 			{
-				my $value = simplify_number(convert_number($$values[0][0]->value) * 0.01);
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->hostMemoryUsage / ($cluster_root_pool->summary->totalMemory / 1024 / 1024) * 100) if (defined($values));
 				$np->add_perfdata(label => "mem_usage", value => $value, uom => '%', threshold => $np->threshold);
-				$output = "mem usage=" . $value . " %";
+				$output = "mem usage=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
+				
+				
+			}
+			else
+			{		
+				$values = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('usage.average'));
+				if (defined($values))
+				{
+					my $value = simplify_number(convert_number($$values[0][0]->value) * 0.01);
+					$np->add_perfdata(label => "mem_usage", value => $value, uom => '%', threshold => $np->threshold);
+					$output = "mem usage=" . $value . " %"; 
+					$res = $np->check_threshold(check => $value);
+				}
 			}
 		}
 		elsif ($subcommand eq "USAGEMB")
 		{
-			$values = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('consumed.average'));
-			if (defined($values))
+			if (defined($quickStats))
 			{
-				my $value = simplify_number(convert_number($$values[0][0]->value) / 1024);
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->hostMemoryUsage) if (defined($values));
 				$np->add_perfdata(label => "mem_usagemb", value => $value, uom => 'MB', threshold => $np->threshold);
-				$output = "mem usage=" . $value . " MB";
+				$output = "mem usage=" . $value . " MB"; 
 				$res = $np->check_threshold(check => $value);
+				
+				
+			}
+			else
+			{			
+				$values = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('consumed.average'));
+				if (defined($values))
+				{
+					my $value = simplify_number(convert_number($$values[0][0]->value) / 1024);
+					$np->add_perfdata(label => "mem_usagemb", value => $value, uom => 'MB', threshold => $np->threshold);
+					$output = "mem usage=" . $value . " MB";
+					$res = $np->check_threshold(check => $value);
+				}
 			}
 		}
 		elsif ($subcommand eq "SWAP")
 		{
-			my $cluster_view;
-			($cluster_view, $values) = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('swapused.average'));
-			if (defined($values))
+			if (defined($quickStats))
 			{
-				my $value = simplify_number(convert_number($$values[0][0]->value) / 1024);
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->swappedMemory) if (defined($values));
 				$np->add_perfdata(label => "mem_swap", value => $value, uom => 'MB', threshold => $np->threshold);
-				$output = "swap usage=" . $value . " MB: ";
+				$output = "swap usage=" . $value . " MB"; 
 				$res = $np->check_threshold(check => $value);
-				if ($res != OK && $outputlist)
+				
+				
+			}
+			else
+			{			
+				my $cluster_view;
+				($cluster_view, $values) = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('swapused.average'));
+				if (defined($values))
 				{
-					my $vm_views = Vim::find_entity_views(view_type => 'VirtualMachine', begin_entity => $$cluster_view[0], properties => ['name', 'runtime.powerState']);
-					die "Runtime error\n" if (!defined($vm_views));
-					die "There are no VMs.\n" if (!@$vm_views);
-					my @vms = ();
-					foreach my $vm (@$vm_views)
+					my $value = simplify_number(convert_number($$values[0][0]->value) / 1024);
+					$np->add_perfdata(label => "mem_swap", value => $value, uom => 'MB', threshold => $np->threshold);
+					$output = "swap usage=" . $value . " MB: ";
+					$res = $np->check_threshold(check => $value);
+					if ($res != OK && $outputlist)
 					{
-						push(@vms, $vm) if ($vm->get_property('runtime.powerState')->val eq "poweredOn");
-					}
-					$values = generic_performance_values(\@vms, $defperfargs, 'mem', ('swapped.average'));
-					if (defined($values))
-					{
-						foreach my $index (0..@vms-1) {
-							my $value = simplify_number(convert_number($$values[$index][0]->value) / 1024);
-							$output .= $vms[$index]->name . " (" . $value . "MB), " if ($value > 0);
+						my $vm_views = Vim::find_entity_views(view_type => 'VirtualMachine', begin_entity => $$cluster_view[0], properties => ['name', 'runtime.powerState']);
+						die "Runtime error\n" if (!defined($vm_views));
+						die "There are no VMs.\n" if (!@$vm_views);
+						my @vms = ();
+						foreach my $vm (@$vm_views)
+						{
+							push(@vms, $vm) if ($vm->get_property('runtime.powerState')->val eq "poweredOn");
+						}
+						$values = generic_performance_values(\@vms, $defperfargs, 'mem', ('swapped.average'));
+						if (defined($values))
+						{
+							foreach my $index (0..@vms-1) {
+								my $value = simplify_number(convert_number($$values[$index][0]->value) / 1024);
+								$output .= $vms[$index]->name . " (" . $value . "MB), " if ($value > 0);
+							}
 						}
 					}
+					chop($output);
+					chop($output);
 				}
-				chop($output);
-				chop($output);
 			}
 		}
 		elsif ($subcommand eq "MEMCTL")
 		{
-			my $cluster_view;
-			($cluster_view, $values) = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('vmmemctl.average'));
-			if (defined($values))
+			if (defined($quickStats))
 			{
-				my $value = simplify_number(convert_number($$values[0][0]->value) / 1024);
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->balloonedMemory) if (defined($values));
 				$np->add_perfdata(label => "mem_memctl", value => $value, uom => 'MB', threshold => $np->threshold);
-				$output = "memctl=" . $value . " MB: ";
+				$output = "memctl=" . $value . " MB"; 
 				$res = $np->check_threshold(check => $value);
-				if ($res != OK && $outputlist)
+				
+				
+			}
+			else
+			{		
+				my $cluster_view;
+				($cluster_view, $values) = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('vmmemctl.average'));
+				if (defined($values))
 				{
-					my $vm_views = Vim::find_entity_views(view_type => 'VirtualMachine', begin_entity => $$cluster_view[0], properties => ['name', 'runtime.powerState']);
-					die "Runtime error\n" if (!defined($vm_views));
-					die "There are no VMs.\n" if (!@$vm_views);
-					my @vms = ();
-					foreach my $vm (@$vm_views)
+					my $value = simplify_number(convert_number($$values[0][0]->value) / 1024);
+					$np->add_perfdata(label => "mem_memctl", value => $value, uom => 'MB', threshold => $np->threshold);
+					$output = "memctl=" . $value . " MB: ";
+					$res = $np->check_threshold(check => $value);
+					if ($res != OK && $outputlist)
 					{
-						push(@vms, $vm) if ($vm->get_property('runtime.powerState')->val eq "poweredOn");
-					}
-					$values = generic_performance_values(\@vms, $defperfargs, 'mem', ('vmmemctl.average'));
-					if (defined($values))
-					{
-						foreach my $index (0..@vms-1) {
-							my $value = simplify_number(convert_number($$values[$index][0]->value) / 1024);
-							$output .= $vms[$index]->name . " (" . $value . "MB), " if ($value > 0);
+						my $vm_views = Vim::find_entity_views(view_type => 'VirtualMachine', begin_entity => $$cluster_view[0], properties => ['name', 'runtime.powerState']);
+						die "Runtime error\n" if (!defined($vm_views));
+						die "There are no VMs.\n" if (!@$vm_views);
+						my @vms = ();
+						foreach my $vm (@$vm_views)
+						{
+							push(@vms, $vm) if ($vm->get_property('runtime.powerState')->val eq "poweredOn");
+						}
+						$values = generic_performance_values(\@vms, $defperfargs, 'mem', ('vmmemctl.average'));
+						if (defined($values))
+						{
+							foreach my $index (0..@vms-1) {
+								my $value = simplify_number(convert_number($$values[$index][0]->value) / 1024);
+								$output .= $vms[$index]->name . " (" . $value . "MB), " if ($value > 0);
+							}
 						}
 					}
+					chop($output);
+					chop($output);
 				}
-				chop($output);
-				chop($output);
 			}
 		}
+		elsif ($subcommand eq "MEMZIP")
+		{
+			if (defined($quickStats))
+			{
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->compressedMemory / 1024) if (defined($values));
+				$np->add_perfdata(label => "mem_zip", value => $value, uom => 'MB', threshold => $np->threshold);
+				$output = "memzip=" . $value . " MB"; 
+				$res = $np->check_threshold(check => $value);
+				
+				
+			}
+		}
+		elsif ($subcommand eq "PRIVATE")
+		{
+			if (defined($quickStats))
+			{
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->privateMemory) if (defined($values));
+				$np->add_perfdata(label => "mem_private", value => $value, uom => 'MB', threshold => $np->threshold);
+				$output = "private=" . $value . " MB"; 
+				$res = $np->check_threshold(check => $value);
+				
+				
+			}
+		}
+		elsif ($subcommand eq "SHARED")
+		{
+			if (defined($quickStats))
+			{
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->sharedMemory) if (defined($values));
+				$np->add_perfdata(label => "mem_shared", value => $value, uom => 'MB', threshold => $np->threshold);
+				$output = "shared=" . $value . " MB"; 
+				$res = $np->check_threshold(check => $value);
+				
+				
+			}
+		}
+		elsif ($subcommand eq "ACTIVE")
+		{
+			if (defined($quickStats))
+			{
+				my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+				die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+				my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+								
+				$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+				my $value = simplify_number($values->guestMemoryUsage) if (defined($values));
+				$np->add_perfdata(label => "mem_active", value => $value, uom => 'MB', threshold => $np->threshold);
+				$output = "active=" . $value . " MB"; 
+				$res = $np->check_threshold(check => $value);
+				
+				
+			}
+		}		
 		else
 		{
 			$res = CRITICAL;
@@ -4368,21 +5039,57 @@ sub cluster_mem_info
 	}
 	else
 	{
-		$values = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('consumed.average', 'usage.average', 'overhead.average', 'swapused.average', 'vmmemctl.average'));
-		if (defined($values))
+		if (defined($quickStats))
 		{
-			my $value1 = simplify_number(convert_number($$values[0][0]->value) / 1024);
-			my $value2 = simplify_number(convert_number($$values[0][1]->value) * 0.01);
-			my $value3 = simplify_number(convert_number($$values[0][2]->value) / 1024);
-			my $value4 = simplify_number(convert_number($$values[0][3]->value) / 1024);
-			my $value5 = simplify_number(convert_number($$values[0][4]->value) / 1024);
+			my $cluster_root_pool = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => $cluster}, properties => ['name', 'summary']);
+			die "Cluster \"" . $$cluster{"name"} . "\" does not exist\n" if (!defined($cluster_root_pool));
+
+			my $cluster_root_pool_view = Vim::find_entity_view(view_type => 'ResourcePool', filter => {name => qr/^Resources$/}, properties => ['summary.quickStats'], begin_entity => $cluster_root_pool);
+							
+			$values = $cluster_root_pool_view->get_property('summary.quickStats');
+
+			my $value1 = simplify_number($values->hostMemoryUsage) if (defined($values));
+			my $value2 = simplify_number($values->hostMemoryUsage / ($cluster_root_pool->summary->totalMemory / 1024 / 1024) * 100) if (defined($values));
+			my $value3 = simplify_number($values->overheadMemory) if (defined($values));
+			my $value4 = simplify_number($values->swappedMemory) if (defined($values));
+			my $value5 = simplify_number($values->balloonedMemory) if (defined($values));
+			my $value6 = simplify_number($values->compressedMemory / 1024) if (defined($values));
+			my $value7 = simplify_number($values->privateMemory) if (defined($values));
+			my $value8 = simplify_number($values->sharedMemory) if (defined($values));
+			my $value9 = simplify_number($values->guestMemoryUsage) if (defined($values));
+			
+			
 			$np->add_perfdata(label => "mem_usagemb", value => $value1, uom => 'MB', threshold => $np->threshold);
 			$np->add_perfdata(label => "mem_usage", value => $value2, uom => '%', threshold => $np->threshold);
 			$np->add_perfdata(label => "mem_overhead", value => $value3, uom => 'MB', threshold => $np->threshold);
 			$np->add_perfdata(label => "mem_swap", value => $value4, uom => 'MB', threshold => $np->threshold);
 			$np->add_perfdata(label => "mem_memctl", value => $value5, uom => 'MB', threshold => $np->threshold);
+			$np->add_perfdata(label => "mem_zip", value => $value6, uom => 'MB', threshold => $np->threshold);
+			$np->add_perfdata(label => "mem_private", value => $value7, uom => 'MB', threshold => $np->threshold);
+			$np->add_perfdata(label => "mem_shared", value => $value8, uom => 'MB', threshold => $np->threshold);
+			$np->add_perfdata(label => "mem_active", value => $value9, uom => 'MB', threshold => $np->threshold);
+			
 			$res = OK;
-			$output = "mem usage=" . $value1 . " MB (" . $value2 . "%), overhead=" . $value3 . " MB, swapped=" . $value4 . " MB, memctl=" . $value5 . " MB";
+			$output = "mem usage=" . $value1 . " MB (" . $value2 . "%), overhead=" . $value3 . " MB, swapped=" . $value4 . " MB, memctl=" . $value5 . " MB, memzip=" . $value6 . " MB, private=" . $value7 . " MB, shared=" . $value8 . " MB, active=" . $value9 . " MB";
+		}
+		else
+		{
+			$values = return_cluster_performance_values($cluster, $defperfargs, 'mem', ('consumed.average', 'usage.average', 'overhead.average', 'swapused.average', 'vmmemctl.average'));
+			if (defined($values))
+			{
+				my $value1 = simplify_number(convert_number($$values[0][0]->value) / 1024);
+				my $value2 = simplify_number(convert_number($$values[0][1]->value) * 0.01);
+				my $value3 = simplify_number(convert_number($$values[0][2]->value) / 1024);
+				my $value4 = simplify_number(convert_number($$values[0][3]->value) / 1024);
+				my $value5 = simplify_number(convert_number($$values[0][4]->value) / 1024);
+				$np->add_perfdata(label => "mem_usagemb", value => $value1, uom => 'MB', threshold => $np->threshold);
+				$np->add_perfdata(label => "mem_usage", value => $value2, uom => '%', threshold => $np->threshold);
+				$np->add_perfdata(label => "mem_overhead", value => $value3, uom => 'MB', threshold => $np->threshold);
+				$np->add_perfdata(label => "mem_swap", value => $value4, uom => 'MB', threshold => $np->threshold);
+				$np->add_perfdata(label => "mem_memctl", value => $value5, uom => 'MB', threshold => $np->threshold);
+				$res = OK;
+				$output = "mem usage=" . $value1 . " MB (" . $value2 . "%), overhead=" . $value3 . " MB, swapped=" . $value4 . " MB, memctl=" . $value5 . " MB";
+			}
 		}
 	}
 
@@ -4392,10 +5099,10 @@ sub cluster_mem_info
 sub cluster_cluster_info
 {
 	my ($cluster, $np, $subcommand) = @_;
-
+	 
 	my $res = CRITICAL;
 	my $output = 'CLUSTER clusterServices Unknown error';
-
+	
 	if (defined($subcommand))
 	{
 		if ($subcommand eq "EFFECTIVECPU")
@@ -4405,7 +5112,7 @@ sub cluster_cluster_info
 			{
 				my $value = simplify_number(convert_number($$values[0][0]->value) * 0.01);
 				$np->add_perfdata(label => "effective cpu", value => $value, uom => 'Mhz', threshold => $np->threshold);
-				$output = "effective cpu=" . $value . " %";
+				$output = "effective cpu=" . $value . " %"; 
 				$res = $np->check_threshold(check => $value);
 			}
 		}
@@ -4533,7 +5240,7 @@ sub cluster_runtime_info
 				$host->update_view_data(['name', 'runtime.powerState']);
 				my $host_state = $host_state_strings{$host->get_property('runtime.powerState')->val};
 				$unknown += $host_state eq "UNKNOWN";
-				if ($host_state eq "UP" && $host_state eq "Maintenance Mode") {
+				if ($host_state eq "UP" && $host_state ne "Maintenance Mode") {
 					$up++;
 					$output .= $host->name . "(UP), ";
 				} else
@@ -4591,10 +5298,13 @@ sub cluster_runtime_info
 			}
 			$np->add_perfdata(label => "issues", value => $issues_count);
 		}
-		else
+		elsif ($subcommand eq "VMOTION")
 		{
-			$res = CRITICAL;
-			$output = "CLUSTER RUNTIME - unknown subcommand\n" . $np->opts->_help;
+			my $vmotions = $cluster_view->summary->numVmotions;
+			if (defined($vmotions))
+			{
+				$output = "Total Migrations using vMotion=" . $vmotions;
+			}
 		}
 	}
 	else
@@ -4645,4 +5355,14 @@ sub cluster_list_vm_volumes_info
 	die "Insufficient rights to access Datastores on the Host\n" if (!defined($cluster_view->datastore));
 
 	return datastore_volumes_info($cluster_view->datastore, $np, $subcommand, $blacklist, $perc, $addopts);
+}
+
+sub cluster_volumes_info
+{
+	my ($cluster, $np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $cluster_view = Vim::find_entity_view(view_type => 'ClusterComputeResource', filter => {name => "$cluster"}, properties => ['name', 'datastore']);
+	die "Insufficient rights to access Datastores on the Host\n" if (!defined($cluster_view->datastore));
+
+	return storage_cluster_info($cluster_view, $np, $subcommand, $blacklist, $perc, $addopts);
 }
