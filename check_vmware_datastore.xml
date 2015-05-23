@@ -23,6 +23,12 @@
 			<direction>output</direction>
 			<query_name>VMFS</query_name>
 		</FreeSpace>
+		
+		<Utilization>
+			<name>Utilization</name>
+			<direction>output</direction>
+			<query_name>VMFSuze</query_name>
+		</Utilization>		
 
 		<NormalizedDatastoreLatency>
 			<name>SIOC latency</name>
