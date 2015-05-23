@@ -730,6 +730,10 @@ eval
 		{
 			($result, $output) = dc_list_vm_volumes_info($np, $subcommand, $blacklist, $percc || $percw, $addopts);
 		}
+		elsif ($command eq "VMFSTHIN")
+		{
+			($result, $output) = dc_list_vm_volumes_overcommit($np, $subcommand, $blacklist, $percc || $percw, $addopts);
+		}
 		elsif ($command eq "VMFSLIST")
 		{
 			($result, $output) = dc_list_volumes_name($np, $subcommand, $blacklist, $percc || $percw, $addopts);
@@ -1187,6 +1191,107 @@ sub datastore_volumes_info
 				$res = Nagios::Plugin::Functions::max_state($res, $state);
 				$np->add_perfdata(label => $name, value => $perc?$value2:$value1, uom => $perc?'%':'MB', threshold => $np->threshold);
 				$output .= "'$name'" . ($usedflag ? "(used)" : "(free)") . "=". $value1 . " MB (" . $value2 . "%), " if (!$briefflag || $state != OK);
+			}
+			else
+			{
+				$res = CRITICAL;
+				$output .= "'$name' is not accessible, ";
+			}
+			last if (!$regexpflag && defined($subcommand) && ($name eq $subcommand));
+			$blacklist .= $blackregexpflag?"|^$name\$":",$name";
+		}
+	}
+
+	if ($output)
+	{
+		chop($output);
+		chop($output);
+		$output = "Storages : " . $output;
+	}
+	else
+	{
+		if ($briefflag)
+		{
+			$output = "There are no alerts";
+		}
+		else
+		{
+			$res = WARNING;
+			$output = defined($subcommand)?$regexpflag? "No matching volumes for regexp \"$subcommand\" found":"No volume named \"$subcommand\" found":"There are no volumes";
+		}
+	}
+
+	return ($res, $output);
+}
+
+sub datastore_volumes_overcommit
+{
+	my ($datastore, $np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $res = OK;
+	my $output = '';
+
+	my $usedflag;
+	my $briefflag;
+	my $regexpflag;
+	my $blackregexpflag;
+	$usedflag = $addopts =~ m/(^|\s|\t|,)\Qused\E($|\s|\t|,)/ if (defined($addopts));
+	$briefflag = $addopts =~ m/(^|\s|\t|,)\Qbrief\E($|\s|\t|,)/ if (defined($addopts));
+	$regexpflag = $addopts =~ m/(^|\s|\t|,)\Qregexp\E($|\s|\t|,)/ if (defined($addopts));
+	$blackregexpflag = $addopts =~ m/(^|\s|\t|,)\Qblacklistregexp\E($|\s|\t|,)/ if (defined($addopts));
+
+	die "Blacklist is supported only in generic check or regexp subcheck\n" if (defined($subcommand) && defined($blacklist) && !defined($regexpflag));
+
+	if (defined($regexpflag) && defined($subcommand))
+	{
+		eval
+		{
+			qr{$subcommand};
+		};
+		if ($@)
+		{
+			$@ =~ s/ at.*line.*\.//;
+			die $@;
+		}
+	}
+
+	my $state;
+	foreach my $ref_store (@{$datastore})
+	{
+		my $store = Vim::get_view(mo_ref => $ref_store, properties => ['summary', 'info']);
+		my $name = $store->summary->name;
+		if (!defined($subcommand) || ($name eq $subcommand) || (defined($regexpflag) && $name =~ /$subcommand/))
+		{
+			if (defined($blacklist))
+			{
+				next if ($blackregexpflag?$name =~ /$blacklist/:$blacklist =~ m/(^|\s|\t|,)\Q$name\E($|\s|\t|,)/);
+			}
+
+			if ($store->summary->accessible)
+			{
+				my $value1;
+				my $value2;
+				my $value3;
+												
+				$value1 += simplify_number(convert_number($store->summary->freeSpace) / 1024 / 1024);
+				$value2 += simplify_number(convert_number($store->summary->capacity) / 1024 / 1024);
+
+				if (!$store->summary->uncommitted)
+				{
+					$value3 += 0;
+				}
+				else
+				{
+					$value3 += simplify_number(convert_number($store->summary->uncommitted) / 1024 / 1024);
+				}
+				
+				my $value4 = $value2 - $value1 + $value3;
+				my $value5 = simplify_number(($value2 - $value1 + $value3) / $value2 * 100);
+				
+				$state = $np->check_threshold(check => $perc?$value2:$value1);
+				$res = Nagios::Plugin::Functions::max_state($res, $state);
+				$np->add_perfdata(label => $name, value => $perc?$value2:$value1, uom => $perc?'%':'MB', threshold => $np->threshold);
+				$output .= "'$name'" . "(provisioned)" . "=". $value4 . " MB (" . $value5 . "%), " if (!$briefflag || $state != OK);
 			}
 			else
 			{
@@ -4078,6 +4183,22 @@ sub dc_list_vm_volumes_info
 	}
 
 	return datastore_volumes_info(\@datastores, $np, $subcommand, $blacklist, $perc, $addopts);
+}
+
+sub dc_list_vm_volumes_overcommit
+{
+	my ($np, $subcommand, $blacklist, $perc, $addopts) = @_;
+
+	my $dc_views = Vim::find_entity_views(view_type => 'Datacenter', properties => ['datastore']);
+	die "There are no Datacenter\n" if (!defined($dc_views));
+
+	my @datastores;
+	foreach my $dc (@$dc_views)
+	{
+		push(@datastores, @{$dc->datastore}) if (defined($dc->datastore));
+	}
+
+	return datastore_volumes_overcommit(\@datastores, $np, $subcommand, $blacklist, $perc, $addopts);
 }
 
 sub dc_list_volumes_name
