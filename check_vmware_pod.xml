@@ -1,0 +1,32 @@
+<interface>
+	<name>Get VMware datastore freespace</name>
+	<description>Queries vcenter with check_esx3.pl via check_esx3_helper.sh</description>
+	<script_path>sh |path_cacti|/scripts/check_esx3_helper.sh </script_path>
+	<arg_prepend>|host_hostname| |host_snmp_username| |host_snmp_password|</arg_prepend>
+	<arg_index>storagepodindex</arg_index>
+	<arg_query>query</arg_query>
+	<arg_get>get</arg_get>
+	<output_delimeter>:</output_delimeter>
+	<index_order>PodName</index_order>
+	<index_order_type>alphabetic</index_order_type>
+	<index_title_format>|chosen_order_field|</index_title_format>
+
+	<fields>
+		<PodName>
+			<name>Pod Name</name>
+			<direction>input</direction>
+			<query_name>podname</query_name>
+		</PodName>
+
+		<FreeSpace>
+			<name>FreeSpace</name>
+			<direction>output</direction>
+			<query_name>SPOD</query_name>
+		</FreeSpace>
+		<OverCommit>
+			<name>OverCommit</name>
+			<direction>output</direction>
+			<query_name>SPODthin</query_name>
+		</OverCommit>
+	</fields>
+</interface>
