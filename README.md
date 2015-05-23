@@ -5,9 +5,9 @@
 
 ![Cluster_VM_count](http://files.hypervisor.fr/img/vCacti/vCacti_Cluster_VM_count.png)
 
-![Cluster_vmotion_count](http://files.hypervisor.fr/img/vCacti_Cluster_vmotion_count.png)
+![Cluster_vmotion_count](http://files.hypervisor.fr/img/vCacti/vCacti_Cluster_vmotion_count.png)
 
-![Cluster_VMFS_Utilization](http://files.hypervisor.fr/img/vCacti_Cluster_VMFS_Utilization.png)
+![Cluster_VMFS_Utilization](http://files.hypervisor.fr/img/vCacti/vCacti_Cluster_VMFS_Utilization.png)
 
 ![Cluster_MEM_QuickStats](http://files.hypervisor.fr/img/LPoD/LPoD_quickstats.png)
 
