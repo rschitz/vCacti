@@ -21,7 +21,7 @@
 		<FreeSpace>
 			<name>FreeSpace</name>
 			<direction>output</direction>
-			<query_name>VMFS</query_name>
+			<query_name>VMFSfree</query_name>
 		</FreeSpace>
 		
 		<Utilization>
