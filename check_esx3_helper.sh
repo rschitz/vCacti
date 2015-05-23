@@ -72,6 +72,9 @@ elif test "$4" = "get" ; then
 		exit
 	elif test "$5" = "VMFSuze" ; then
 		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l vmfs -s $6 -o used|awk -F"[= MB]" '{ print $8 }'
+		exit
+	elif test "$5" = "VMFSfree" ; then
+		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l vmfs -s $6|awk -F"[= MB]" '{ print $8 }'
 		exit		
 	elif test "$5" = "SPOD" ; then
 		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l storagepod -s $6 |sed "s/^..*=*(\([0-9][0-9.]*\)%)[ ]*|[ ]*..*$/\1/"|awk '{ if (match($1,"^[.0-9]+$") != 0) print 100 - $1; else print 0; }'
