@@ -1139,10 +1139,12 @@ sub datastore_volumes_info
 	my $output = '';
 
 	my $usedflag;
+	my $utilizationflag;
 	my $briefflag;
 	my $regexpflag;
 	my $blackregexpflag;
 	$usedflag = $addopts =~ m/(^|\s|\t|,)\Qused\E($|\s|\t|,)/ if (defined($addopts));
+	$utilizationflag = $addopts =~ m/(^|\s|\t|,)\Qutilization\E($|\s|\t|,)/ if (defined($addopts));
 	$briefflag = $addopts =~ m/(^|\s|\t|,)\Qbrief\E($|\s|\t|,)/ if (defined($addopts));
 	$regexpflag = $addopts =~ m/(^|\s|\t|,)\Qregexp\E($|\s|\t|,)/ if (defined($addopts));
 	$blackregexpflag = $addopts =~ m/(^|\s|\t|,)\Qblacklistregexp\E($|\s|\t|,)/ if (defined($addopts));
@@ -1186,11 +1188,24 @@ sub datastore_volumes_info
 					$value1 = simplify_number(convert_number($store->summary->capacity) / 1024 / 1024) - $value1;
 					$value2 = 100 - $value2;
 				}
+				elsif ($utilizationflag)
+				{
+					$value1 = simplify_number(convert_number($store->summary->capacity) / 1024 / 1024) - $value1;
+					$value2 = simplify_number(convert_number($store->summary->capacity) / 1024 / 1024);
+				}
 
 				$state = $np->check_threshold(check => $perc?$value2:$value1);
 				$res = Nagios::Plugin::Functions::max_state($res, $state);
 				$np->add_perfdata(label => $name, value => $perc?$value2:$value1, uom => $perc?'%':'MB', threshold => $np->threshold);
-				$output .= "'$name'" . ($usedflag ? "(used)" : "(free)") . "=". $value1 . " MB (" . $value2 . "%), " if (!$briefflag || $state != OK);
+				
+				if ($utilizationflag)
+				{
+					$output .= "'$name'" . "(used)" . "=" . $value1 . " MB " . "(total)" . "=" . $value2 . " MB, " if (!$briefflag || $state != OK);
+				}
+				else
+				{
+					$output .= "'$name'" . ($usedflag ? "(used)" : "(free)") . "=". $value1 . " MB (" . $value2 . "%), " if (!$briefflag || $state != OK);
+				}
 			}
 			else
 			{
