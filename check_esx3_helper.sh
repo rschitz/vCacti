@@ -1,5 +1,5 @@
 #!/bin/sh
-# VI/vSphere check_vmware_api.pl helper script v2.6 by Hypervisor.fr
+# VI/vSphere check_vmware_api.pl helper script v2.7 by Hypervisor.fr
 
 export PERL_LWP_SSL_VERIFY_HOSTNAME=0
 
@@ -67,6 +67,9 @@ elif test "$4" = "get" ; then
 	elif test "$5" = "VMFS" ; then
 		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l vmfs -s $6 |sed "s/^..*=*(\([0-9][0-9.]*\)%)[ ]*|[ ]*..*$/\1/"|awk '{ if (match($1,"^[.0-9]+$") != 0) print 100 - $1; else print 0; }'
 		exit
+	elif test "$5" = "VMFSthin" ; then
+		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l vmfsthin -s $6 |sed "s/^..*=*(\([0-9][0-9.]*\)%)[ ]*|[ ]*..*$/\1/"
+		exit		
 	elif test "$5" = "SPOD" ; then
 		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l storagepod -s $6 |sed "s/^..*=*(\([0-9][0-9.]*\)%)[ ]*|[ ]*..*$/\1/"|awk '{ if (match($1,"^[.0-9]+$") != 0) print 100 - $1; else print 0; }'
 		exit
