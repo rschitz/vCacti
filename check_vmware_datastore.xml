@@ -28,7 +28,13 @@
 			<name>Utilization</name>
 			<direction>output</direction>
 			<query_name>VMFSuze</query_name>
-		</Utilization>		
+		</Utilization>
+		
+		<OverCommit>
+			<name>OverCommit</name>
+			<direction>output</direction>
+			<query_name>VMFSthin</query_name>
+		</OverCommit>
 
 		<NormalizedDatastoreLatency>
 			<name>SIOC latency</name>
@@ -40,6 +46,6 @@
 			<name>SIOC IOPS</name>
 			<direction>output</direction>
 			<query_name>IOPS</query_name>
-		</datastoreIops>		
+		</datastoreIops>
 	</fields>
 </interface>
