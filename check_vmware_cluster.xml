@@ -1,0 +1,62 @@
+<interface>
+	<name>Get VMware cluster performance statistics</name>
+	<description>Queries vcenter with check_esx3.pl via check_esx3_helper.sh</description>
+	<script_path>sh |path_cacti|/scripts/check_esx3_helper.sh </script_path>
+	<arg_prepend>|host_hostname| |host_snmp_username| |host_snmp_password|</arg_prepend>
+	<arg_index>clusterindex</arg_index>
+	<arg_query>query</arg_query>
+	<arg_get>get</arg_get>
+	<output_delimeter>:</output_delimeter>
+	<index_order>ClusterName</index_order>
+	<index_order_type>alphabetic</index_order_type>
+	<index_title_format>|chosen_order_field|</index_title_format>
+
+	<fields>
+		<ClusterName>
+			<name>Cluster Name</name>
+			<direction>input</direction>
+			<query_name>clustername</query_name>
+		</ClusterName>
+
+		<CPU>
+			<name>CPU Usage</name>
+			<direction>output</direction>
+			<query_name>CPU</query_name>
+		</CPU>
+		<CPUMHZ>
+			<name>CPU Utilization</name>
+			<direction>output</direction>
+			<query_name>CPUMHZ</query_name>
+		</CPUMHZ>
+		<MEM>
+			<name>MEM Usage</name>
+			<direction>output</direction>
+			<query_name>MEM</query_name>
+		</MEM>
+		<MEMMB>
+			<name>MEM Utilization</name>
+			<direction>output</direction>
+			<query_name>MEMMB</query_name>
+		</MEMMB>
+		<VMup>
+			<name>VM UP Count</name>
+			<direction>output</direction>
+			<query_name>VMup</query_name>
+		</VMup>
+		<VMtotal>
+			<name>VM Total Count</name>
+			<direction>output</direction>
+			<query_name>VMtotal</query_name>
+		</VMtotal>
+		<vMotion>
+			<name>vMotion Total Count</name>
+			<direction>output</direction>
+			<query_name>VMOTION</query_name>
+		</vMotion>
+		<VMFSCLUSTER>
+			<name>Cluster Storage Utilization</name>
+			<direction>output</direction>
+			<query_name>VMFSCLUSTER</query_name>
+		</VMFSCLUSTER>
+	</fields>
+</interface>
