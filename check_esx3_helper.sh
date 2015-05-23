@@ -62,7 +62,7 @@ elif test "$4" = "get" ; then
 		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -C $6 -l runtime -s VMOTION| awk -F"=" '{ print $2 }'
 		exit
 	elif test "$5" = "VMFSCLUSTER" ; then
-		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -C $6 -l storage|awk -F"[=MB]" '{ print "used:"$3 " free:"$6 }'
+		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -C $6 -l storage|awk -F"[= MB]" '{ print $9 }'
 		exit		
 	elif test "$5" = "VMFS" ; then
 		perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l vmfs -s $6 |sed "s/^..*=*(\([0-9][0-9.]*\)%)[ ]*|[ ]*..*$/\1/"|awk '{ if (match($1,"^[.0-9]+$") != 0) print 100 - $1; else print 0; }'
