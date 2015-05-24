@@ -23,4 +23,6 @@
 
 ![Datastore_VMFS_Usage](http://files.hypervisor.fr/img/vCacti/vCacti_Datastore_VMFS_Usage.png)
 
+![vCacti_Datastore_VMFS_Utilization](http://files.hypervisor.fr/img/vCacti/vCacti_Datastore_VMFS_Utilization.png)
+
 ![vCacti_POD_Summary](http://files.hypervisor.fr/img/vCacti/vCacti_POD_Summary.png)
