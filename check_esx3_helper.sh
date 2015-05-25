@@ -20,7 +20,7 @@ elif test "$4" = "datastoreindex" ; then
 	perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l vmfs|sed "s/|[ ]*..*//" | tr "," "\n" | sed "s/..*[ ]*://" | awk -F"'" '{ print $2 }'
 	exit
 elif test "$4" = "storagepodindex" ; then
-	perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l storagepod| tr "," "\n" | awk -F"'" '!/^($|#|[:space:]*)/{ print $2 }'
+	perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l storagepod| tr "," "\n" | awk -F"'" '{ print $2 }'
 	exit
 elif test "$4" = "query" ; then
 	if test "$5" = "clustername" ; then
@@ -30,7 +30,7 @@ elif test "$4" = "query" ; then
 		for datastore in `perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l vmfs|sed "s/|[ ]*..*//" | tr "," "\n" | sed "s/..*[ ]*://" | awk -F"'" '{ print $2 }'` ; do echo $datastore:$datastore; done
 		exit
 	elif test "$5" = "podname" ; then
-		for datastore in `perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l storagepod| tr "," "\n" | awk -F"'" '!/^($|#|[:space:]*)/{ print $2 }'` ; do echo $datastore:$datastore; done
+		for datastore in `perl $check_esx3 -S /tmp/check_$1_session.dat -D $1 -u $2 -p $3 -l storagepod| tr "," "\n" | awk -F"'" '{ print $2 }'` ; do echo $datastore:$datastore; done
 		exit
 	else
 		echo $usage
