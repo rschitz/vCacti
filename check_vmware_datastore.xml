@@ -23,6 +23,12 @@
 			<direction>output</direction>
 			<query_name>VMFSfree</query_name>
 		</FreeSpace>
+
+		<UsedSpace>
+			<name>UsedSpace</name>
+			<direction>output</direction>
+			<query_name>VMFS</query_name>
+		</UsedSpace>
 		
 		<Utilization>
 			<name>Utilization</name>
